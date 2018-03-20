@@ -1,0 +1,52 @@
+#
+# App that simply writes recent values to CSV
+#
+param(
+	[int]$stream = 1
+)
+$outputDirectory = '\\your\directory\'
+if($stream -eq 1){
+  #optional logic here based on arguments passed to script
+}
+
+$tagmask = "Sinus"
+$fileName = "PIDataExport "
+
+$PSDefaultParameterValues = @{ '*:Encoding' = 'utf8' } 
+$filename += Get-Date -format "yyyy-MM-dd HH-mm-ss"
+$outputFile = $outputDirectory + $fileName + ' (GMT +01-00).csv'
+$delimiter = ", "
+$dateFormat = 'dd-MMM-yyyy HH:mm:ss'
+$servername = "MyPIServer"
+#connect to Server
+$PISrv = Connect-PIDataArchive -PIDataArchiveMachineName $servername
+
+
+#get tags based on the tag mask supplied by the user
+$tags = Get-PIPoint -Name ($tagmask+'*') -Connection $PISrv
+$linesForCSV = @()
+
+#from 5mins ago to now
+$endTime = Get-Date
+$startTime = $endTime.AddMinutes(-1)
+
+
+foreach($tag in $tags)
+{
+    #$tags[1].Point.GetEvents($currentTime, 4, $TRUE, $TRUE)
+    #$event2 = $tag.Point.GetEvents($endTime, 1, $TRUE, $TRUE)
+    $event = $tag.Point.GetCurrentEvent();
+    #foreach($event in $events){
+    if($event){
+        if($event.Value.GetType().Name -eq "Single"){
+            $newtagname= $tag.Point.Name.replace("Sinu","Te")
+            $line =  $newtagname + $delimiter+$event.TimeStamp.ToString($dateFormat)+$delimiter+$event.Value
+            $line >> $outputFile
+        }
+    }
+}
+
+
+$MyFile = Get-Content $outputFile
+$Utf8NoBomEncoding = New-Object System.Text.UTF8Encoding $False
+[System.IO.File]::WriteAllLines($outputFile, $MyFile, $Utf8NoBomEncoding)
